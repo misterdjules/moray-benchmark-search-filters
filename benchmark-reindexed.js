@@ -31,6 +31,11 @@ var cmdLineOptions = [
         names: ['findobjectsopts', 'opts'],
         type: 'string',
         help: 'additional options to pass to findobjects'
+    },
+    {
+        names: ['norecreatebucket'],
+        type: 'bool',
+        help: 'whether or not to recreate the test bucket if present'
     }
 ];
 
@@ -138,7 +143,8 @@ function main(parsedCmdLineOpts) {
             function deleteBenchmarkBucket(ctx, next) {
                 assert.optionalObject(ctx.bucket, 'ctx.bucket');
 
-                if (ctx.bucket === undefined) {
+                if (ctx.bucket === undefined ||
+                    parsedCmdLineOpts.norecreatebucket === true) {
                     next();
                     return;
                 }
@@ -156,7 +162,11 @@ function main(parsedCmdLineOpts) {
                     });
             },
             function createBenchmarkBucket(ctx, next) {
-                assert.equal(ctx.bucket, undefined);
+                if (ctx.bucket !== undefined) {
+                    assert.ok(parsedCmdLineOpts.norecreatebucket);
+                    next();
+                    return;
+                }
 
                 console.log('Creating bucket %s...', BENCHMARK_BUCKET_NAME);
 
@@ -164,15 +174,33 @@ function main(parsedCmdLineOpts) {
                     BENCHMARK_BUCKET_CFG_V0, next);
             },
             function updateBenchmarkBucket(ctx, next) {
+                if (ctx.bucket) {
+                    assert.ok(parsedCmdLineOpts.norecreatebucket);
+                    next();
+                    return;
+                }
+
                 morayClient.updateBucket(BENCHMARK_BUCKET_NAME,
                     BENCHMARK_BUCKET_CFG_V1, next);
             },
             function reindexObjects(ctx, next) {
+                if (ctx.bucket) {
+                    assert.ok(parsedCmdLineOpts.norecreatebucket);
+                    next();
+                    return;
+                }
+
                 morayTools.reindexObjects(morayClient, BENCHMARK_BUCKET_NAME, {
                     reindexCount: 100
                 }, next);
             },
             function addSentinelObjects(ctx, next) {
+                if (ctx.bucket) {
+                    assert.ok(parsedCmdLineOpts.norecreatebucket);
+                    next();
+                    return;
+                }
+
                 console.log('Adding %d sentinel objects...', NB_OBJECTS_SENTINEL);
 
                 morayTools.addObjects(morayClient, BENCHMARK_BUCKET_NAME, {
@@ -185,6 +213,12 @@ function main(parsedCmdLineOpts) {
                 }, NB_OBJECTS_SENTINEL, next);
             },
             function addNonSentinelObjects(ctx, next) {
+                if (ctx.bucket) {
+                    assert.ok(parsedCmdLineOpts.norecreatebucket);
+                    next();
+                    return;
+                }
+
                 console.log('Adding %d non-sentinel objects...',
                     NB_OBJECTS_NON_SENTINEL);
 
